@@ -7,15 +7,15 @@ export default function App() {
     <div>
       <h1>KBW 2026 Photo Card POS</h1>
       <p>Common & Uncommon</p>
-      <Card imageUrl={`${REPO_URL}/images/temp3.png`} rarity="common" />
+      <Card imageUrl={`${REPO_URL}/images/temp.png`} rarity="common" />
       <p>Holofoil Rare</p>
-      <Card imageUrl={`${REPO_URL}/images/temp3.png`} rarity="rare" />
+      <Card imageUrl={`${REPO_URL}/images/temp2.png`} rarity="rare" />
       <p>Radiant Holofoil</p>
       <Card imageUrl={`${REPO_URL}/images/temp3.png`} rarity="legendary" />
       <p>Galaxy/Cosmos Holofoil</p>
       <Card imageUrl={`${REPO_URL}/images/temp.png`} rarity="unique" />
       <p>Pokemon V</p>
-      <Card imageUrl={`${REPO_URL}/images/temp3.png`} rarity="epic" />
+      <Card imageUrl={`${REPO_URL}/images/temp2.png`} rarity="epic" />
     </div>
   );
 }
