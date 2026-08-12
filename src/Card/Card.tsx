@@ -18,14 +18,21 @@ export type CardRarity =
 type Props = {
   imageUrl: string;
   rarity: CardRarity;
+  /** 기기 기울기(자이로)에 반응하는 모드. iOS 13+는 사전에 권한 허용 필요 */
+  gyro?: boolean;
 };
 
 // 카드 크기와 무관한 최대 기울기 각도
 const MAX_ROTATE_X = 20;
 const MAX_ROTATE_Y = 15;
 const PERSPECTIVE = 800;
+// 기기를 이 각도(deg)만큼 기울이면 연출이 최대치에 도달
+const GYRO_TILT_RANGE = 25;
 
-export default function Card({ imageUrl, rarity }: Props) {
+const clamp = (v: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, v));
+
+export default function Card({ imageUrl, rarity, gyro = false }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
@@ -38,6 +45,34 @@ export default function Card({ imageUrl, rarity }: Props) {
   // 스프링 적용 (부드럽게)
   const rotateX = useSpring(mvX, { stiffness: 180, damping: 18 });
   const rotateY = useSpring(mvY, { stiffness: 180, damping: 18 });
+
+  // 카드 표면 좌표(%)를 받아 shine/glare용 CSS 변수를 갱신
+  const applySurfacePointer = (px: number, py: number) => {
+    const card = cardRef.current;
+    if (!card) return;
+
+    const pointerFromLeft = px / 100;
+    const pointerFromTop = py / 100;
+    const pointerFromCenter = Math.min(
+      1,
+      Math.hypot(pointerFromLeft - 0.5, pointerFromTop - 0.5) * 2
+    );
+
+    // 배경(홀로 빔) 이동은 원본 pokemon-cards-css처럼 좁은 범위로 압축해서
+    // 커서와 따로 노는 느낌 없이 은은하게 시차(패럴랙스)만 주도록 한다
+    const bgX = 37 + (px * (63 - 37)) / 100;
+    const bgY = 33 + (py * (67 - 33)) / 100;
+
+    card.style.setProperty("--pointer-x", `${px}%`);
+    card.style.setProperty("--pointer-y", `${py}%`);
+    card.style.setProperty("--pointer-from-left", `${pointerFromLeft}`);
+    card.style.setProperty("--pointer-from-top", `${pointerFromTop}`);
+    card.style.setProperty("--pointer-from-center", `${pointerFromCenter}`);
+    card.style.setProperty("--background-x", `${bgX}%`);
+    card.style.setProperty("--background-y", `${bgY}%`);
+  };
+  const applySurfacePointerRef = useRef(applySurfacePointer);
+  applySurfacePointerRef.current = applySurfacePointer;
 
   // 커서의 화면 좌표를 3D 회전·원근이 적용된 카드 표면 좌표로 역투영.
   // transform = perspective(d) rotateX(θ) rotateY(φ) 의 역산이라
@@ -73,28 +108,10 @@ export default function Card({ imageUrl, rarity }: Props) {
     const u = (d * (sx * f - sy * b)) / det;
     const v = (d * (sy * a - sx * c)) / det;
 
-    const px = Math.min(100, Math.max(0, ((u + rect.width / 2) / rect.width) * 100));
-    const py = Math.min(100, Math.max(0, ((v + rect.height / 2) / rect.height) * 100));
+    const px = clamp(((u + rect.width / 2) / rect.width) * 100, 0, 100);
+    const py = clamp(((v + rect.height / 2) / rect.height) * 100, 0, 100);
 
-    const pointerFromLeft = px / 100;
-    const pointerFromTop = py / 100;
-    const pointerFromCenter = Math.min(
-      1,
-      Math.hypot(pointerFromLeft - 0.5, pointerFromTop - 0.5) * 2
-    );
-
-    // 배경(홀로 빔) 이동은 원본 pokemon-cards-css처럼 좁은 범위로 압축해서
-    // 커서와 따로 노는 느낌 없이 은은하게 시차(패럴랙스)만 주도록 한다
-    const bgX = 37 + (px * (63 - 37)) / 100;
-    const bgY = 33 + (py * (67 - 33)) / 100;
-
-    card.style.setProperty("--pointer-x", `${px}%`);
-    card.style.setProperty("--pointer-y", `${py}%`);
-    card.style.setProperty("--pointer-from-left", `${pointerFromLeft}`);
-    card.style.setProperty("--pointer-from-top", `${pointerFromTop}`);
-    card.style.setProperty("--pointer-from-center", `${pointerFromCenter}`);
-    card.style.setProperty("--background-x", `${bgX}%`);
-    card.style.setProperty("--background-y", `${bgY}%`);
+    applySurfacePointer(px, py);
   };
   const updateShineRef = useRef(updateShine);
   updateShineRef.current = updateShine;
@@ -109,6 +126,61 @@ export default function Card({ imageUrl, rarity }: Props) {
       unsubY();
     };
   }, [rotateX, rotateY]);
+
+  // 자이로 모드: 기기 기울기를 tilt + 가상 표면 포인터로 변환
+  useEffect(() => {
+    if (!gyro) return;
+
+    // 모드 켠 시점의 자세를 0점으로 캘리브레이션
+    let baseline: { beta: number; gamma: number } | null = null;
+
+    const onOrientation = (e: DeviceOrientationEvent) => {
+      if (e.beta == null || e.gamma == null) return;
+      if (baseline === null) baseline = { beta: e.beta, gamma: e.gamma };
+
+      const dBeta = e.beta - baseline.beta; // 앞뒤 기울기
+      const dGamma = e.gamma - baseline.gamma; // 좌우 기울기
+
+      // 화면 회전(가로/세로)에 맞춰 축 정렬
+      const angle = screen.orientation?.angle ?? 0;
+      let tx: number;
+      let ty: number;
+      if (angle === 90) {
+        tx = dBeta;
+        ty = -dGamma;
+      } else if (angle === 270) {
+        tx = -dBeta;
+        ty = dGamma;
+      } else if (angle === 180) {
+        tx = -dGamma;
+        ty = -dBeta;
+      } else {
+        tx = dGamma;
+        ty = dBeta;
+      }
+
+      const nx = clamp(tx / GYRO_TILT_RANGE, -1, 1);
+      const ny = clamp(ty / GYRO_TILT_RANGE, -1, 1);
+
+      // 포인터 기반 shine 갱신과 충돌하지 않도록 마지막 커서 좌표를 비움
+      lastPointerRef.current = null;
+      setIsActive(true);
+
+      // 포인터 모드와 동일한 관계로 매핑 (표면 x 100% ↔ rotateY -MAX)
+      mvX.set(ny * MAX_ROTATE_X);
+      mvY.set(-nx * MAX_ROTATE_Y);
+      applySurfacePointerRef.current(50 + nx * 50, 50 + ny * 50);
+    };
+
+    window.addEventListener("deviceorientation", onOrientation);
+    return () => {
+      window.removeEventListener("deviceorientation", onOrientation);
+      mvX.set(0);
+      mvY.set(0);
+      setIsActive(false);
+      cardRef.current?.style.setProperty("--pointer-from-center", "0");
+    };
+  }, [gyro, mvX, mvY]);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     // 회전 중인 카드가 아닌, 변형 없는 래퍼 기준으로 좌표 계산
