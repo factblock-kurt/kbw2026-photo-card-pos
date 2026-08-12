@@ -3,12 +3,18 @@ import Card, { type CardRarity } from "./Card/Card";
 
 const REPO_URL = "https://factblock-kurt.github.io/kbw2026-photo-card-pos";
 
-const CARD_TYPES: { rarity: CardRarity; label: string; image: string }[] = [
-  { rarity: "common", label: "Common & Uncommon", image: "temp.webp" },
-  { rarity: "rare", label: "Holofoil Rare", image: "temp2.webp" },
-  { rarity: "legendary", label: "Radiant Holofoil", image: "temp.webp" },
-  { rarity: "unique", label: "Galaxy/Cosmos Holofoil", image: "temp.webp" },
-  { rarity: "epic", label: "Pokemon V", image: "temp2.webp" },
+const CARD_TYPES: { rarity: CardRarity; label: string }[] = [
+  { rarity: "common", label: "Common & Uncommon" },
+  { rarity: "rare", label: "Holofoil Rare" },
+  { rarity: "legendary", label: "Radiant Holofoil" },
+  { rarity: "unique", label: "Galaxy/Cosmos Holofoil" },
+  { rarity: "epic", label: "Pokemon V" },
+];
+
+const CARD_IMAGES: { file: string; label: string }[] = [
+  { file: "temp.webp", label: "존버의 신" },
+  { file: "temp2.webp", label: "투더문" },
+  { file: "temp3.webp", label: "크립토킹" },
 ];
 
 // ?mode=touch → 시안 2(터치), 그 외 → 시안 1(자이로)
@@ -19,6 +25,31 @@ const mode =
 
 export default function App() {
   return mode === "touch" ? <TouchDemo /> : <GyroDemo />;
+}
+
+function ImageSelector({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (file: string) => void;
+}) {
+  return (
+    <fieldset style={{ border: "none", padding: 0, margin: "12px 0" }}>
+      {CARD_IMAGES.map((img) => (
+        <label key={img.file} style={{ marginRight: 16 }}>
+          <input
+            type="radio"
+            name="cardImage"
+            value={img.file}
+            checked={value === img.file}
+            onChange={() => onChange(img.file)}
+          />{" "}
+          {img.label}
+        </label>
+      ))}
+    </fieldset>
+  );
 }
 
 function RaritySelector({
@@ -50,7 +81,7 @@ function RaritySelector({
 function GyroDemo() {
   const [gyroOn, setGyroOn] = useState(false);
   const [rarity, setRarity] = useState<CardRarity>("epic");
-  const selected = CARD_TYPES.find((t) => t.rarity === rarity)!;
+  const [image, setImage] = useState(CARD_IMAGES[0].file);
 
   const toggleGyro = async () => {
     if (gyroOn) {
@@ -90,9 +121,10 @@ function GyroDemo() {
         기기에서는 터치(드래그)로 동작합니다.
       </p>
       <RaritySelector value={rarity} onChange={setRarity} />
+      <ImageSelector value={image} onChange={setImage} />
       <Card
         key={rarity}
-        imageUrl={`${REPO_URL}/images/${selected.image}`}
+        imageUrl={`${REPO_URL}/images/${image}`}
         rarity={rarity}
         gyro={gyroOn}
       />
@@ -103,7 +135,7 @@ function GyroDemo() {
 /** 시안 2 — 터치/마우스 반응 버전 */
 function TouchDemo() {
   const [rarity, setRarity] = useState<CardRarity>("epic");
-  const selected = CARD_TYPES.find((t) => t.rarity === rarity)!;
+  const [image, setImage] = useState(CARD_IMAGES[0].file);
 
   return (
     <div>
@@ -112,9 +144,10 @@ function TouchDemo() {
         시안 2 — 터치/마우스 반응 · <a href="?">시안 1(자이로) 보기</a>
       </p>
       <RaritySelector value={rarity} onChange={setRarity} />
+      <ImageSelector value={image} onChange={setImage} />
       <Card
         key={rarity}
-        imageUrl={`${REPO_URL}/images/${selected.image}`}
+        imageUrl={`${REPO_URL}/images/${image}`}
         rarity={rarity}
       />
     </div>
