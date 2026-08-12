@@ -5,6 +5,7 @@ const REPO_URL = "https://github.com/factblock-kurt/kbw2026-photo-card-pos";
 export default function App() {
   return (
     <div>
+      <h1>KBW 2026 Photo Card POS</h1>
       <p>Common & Uncommon</p>
       <Card imageUrl={`${REPO_URL}/images/temp3.png`} rarity="common" />
       <p>Holofoil Rare</p>
