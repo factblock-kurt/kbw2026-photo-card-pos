@@ -28,6 +28,10 @@ const MAX_ROTATE_Y = 15;
 const PERSPECTIVE = 800;
 // 기기를 이 각도(deg)만큼 기울이면 연출이 최대치에 도달
 const GYRO_TILT_RANGE = 25;
+// 이 각도(deg) 미만은 평평한 상태로 간주 — 센서 노이즈로 홀로그램이 남지 않게
+const GYRO_DEADZONE = 5;
+// 연출이 켜지는 기준은 데드존보다 살짝 높게(히스테리시스) 잡아 경계에서 깜빡임 방지
+const GYRO_ACTIVATE = 8;
 
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
@@ -133,6 +137,8 @@ export default function Card({ imageUrl, rarity, gyro = false }: Props) {
 
     // 모드 켠 시점의 자세를 0점으로 캘리브레이션
     let baseline: { beta: number; gamma: number } | null = null;
+    // 히스테리시스 상태: 데드존을 확실히 벗어나야 켜지고, 다시 들어와야 꺼짐
+    let engaged = false;
 
     const onOrientation = (e: DeviceOrientationEvent) => {
       if (e.beta == null || e.gamma == null) return;
@@ -159,12 +165,30 @@ export default function Card({ imageUrl, rarity, gyro = false }: Props) {
         ty = dBeta;
       }
 
-      const nx = clamp(tx / GYRO_TILT_RANGE, -1, 1);
-      const ny = clamp(ty / GYRO_TILT_RANGE, -1, 1);
+      // 데드존: 테이블에 올려둔 정도의 미세한 기울기는 평평한 것으로 처리
+      const mag = Math.hypot(tx, ty);
+      engaged = engaged ? mag > GYRO_DEADZONE : mag > GYRO_ACTIVATE;
 
       // 포인터 기반 shine 갱신과 충돌하지 않도록 마지막 커서 좌표를 비움
       lastPointerRef.current = null;
+
+      if (!engaged) {
+        setIsActive(false);
+        mvX.set(0);
+        mvY.set(0);
+        applySurfacePointerRef.current(50, 50);
+        return;
+      }
       setIsActive(true);
+
+      // 데드존을 뺀 나머지 구간을 0~1로 재매핑해 경계에서 값이 튀지 않게
+      const scale = clamp(
+        (mag - GYRO_DEADZONE) / (GYRO_TILT_RANGE - GYRO_DEADZONE),
+        0,
+        1
+      );
+      const nx = (tx / mag) * scale;
+      const ny = (ty / mag) * scale;
 
       // 포인터 모드와 동일한 관계로 매핑 (표면 x 100% ↔ rotateY -MAX)
       mvX.set(ny * MAX_ROTATE_X);
