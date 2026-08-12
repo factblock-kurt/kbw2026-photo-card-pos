@@ -71,7 +71,9 @@
   background-position:
     center,
     0% var(--background-y),
-    calc(var(--background-x) * -1) calc(var(--background-y) * -1),
+    /* 음수 % 위치는 반복 타일 이음매(세로줄)가 카드 안으로 들어오므로
+       0~100% 범위를 유지하면서 반대 방향으로 움직이도록 100%-x 사용 */
+    calc(100% - var(--background-x)) calc(100% - var(--background-y)),
     var(--background-x) var(--background-y);
   background-size: var(--imgsize) 100%, 200% 400%, 195% 100%, 200% 100%;
   filter: brightness(1) contrast(2.5) saturate(1.75);

@@ -11,7 +11,7 @@ export default function App() {
       <p>Holofoil Rare</p>
       <Card imageUrl={`${REPO_URL}/images/temp2.png`} rarity="rare" />
       <p>Radiant Holofoil</p>
-      <Card imageUrl={`${REPO_URL}/images/temp3.png`} rarity="legendary" />
+      <Card imageUrl={`${REPO_URL}/images/temp.png`} rarity="legendary" />
       <p>Galaxy/Cosmos Holofoil</p>
       <Card imageUrl={`${REPO_URL}/images/temp.png`} rarity="unique" />
       <p>Pokemon V</p>

@@ -1,3 +1,9 @@
+.tilt-card-wrap {
+  flex-shrink: 0;
+  width: 315px;
+  touch-action: none;
+}
+
 .tilt-card {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
@@ -7,9 +13,8 @@
   cursor: grab;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
 
-  flex-shrink: 0;
-  width: 315px;
-  height: 436px;
+  width: 100%;
+  height: 100%;
   border-radius: 16px;
   overflow: hidden;
   background: #222;
