@@ -1,6 +1,6 @@
 import Card from "./Card/Card";
 
-const REPO_URL = "https://github.com/factblock-kurt/kbw2026-photo-card-pos";
+const REPO_URL = "https://factblock-kurt.github.io/kbw2026-photo-card-pos";
 
 export default function App() {
   return (
